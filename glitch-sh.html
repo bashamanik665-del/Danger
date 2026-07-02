@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GLITCH.SH — Totally Legit Hacking Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --grn:#39ff88;
+    --grn-dim:#0f5c33;
+    --amber:#ffcc00;
+    --red:#ff4d5e;
+    --bg:#020805;
+    --panel:rgba(4,14,9,0.88);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);font-family:'JetBrains Mono',monospace;user-select:none;}
+  #wrap{position:relative;width:100vw;height:100vh;}
+  canvas#rain{position:absolute;inset:0;z-index:0;}
+
+  .scanoverlay{position:absolute;inset:0;z-index:8;pointer-events:none;
+    background:repeating-linear-gradient(to bottom, rgba(57,255,136,0.025) 0px, rgba(57,255,136,0.025) 1px, transparent 1px, transparent 3px);
+    mix-blend-mode:overlay;
+  }
+  .flicker{position:absolute;inset:0;z-index:9;pointer-events:none;background:rgba(57,255,136,0.02);animation:flick 4s infinite;}
+  @keyframes flick{0%,96%,100%{opacity:0;}97%{opacity:1;}98%{opacity:0;}}
+
+  .app{position:relative;z-index:5;height:100%;display:flex;flex-direction:column;padding:14px;gap:10px;}
+
+  .header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+  .logo{font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--grn);letter-spacing:0.08em;font-size:16px;text-shadow:0 0 12px rgba(57,255,136,0.6);}
+  .logo span{color:var(--amber);}
+  .rank{
+    font-size:10.5px;color:var(--grn);border:1px solid var(--grn-dim);border-radius:3px;padding:5px 9px;
+    background:rgba(57,255,136,0.06); letter-spacing:0.08em;
+  }
+  .rank b{color:var(--amber);}
+
+  .terminal{
+    flex:1; min-height:0;
+    background:var(--panel);
+    border:1px solid var(--grn-dim);
+    border-radius:6px;
+    padding:12px 14px;
+    overflow-y:auto;
+    font-size:12px;
+    line-height:1.65;
+    color:var(--grn);
+    box-shadow:0 0 30px rgba(57,255,136,0.08) inset;
+  }
+  .terminal::-webkit-scrollbar{width:6px;}
+  .terminal::-webkit-scrollbar-thumb{background:var(--grn-dim);border-radius:3px;}
+  .line{white-space:pre-wrap;word-break:break-word;margin-bottom:2px;}
+  .line.sys{color:#6bffb0;}
+  .line.warn{color:var(--amber);}
+  .line.bad{color:var(--red);}
+  .line.joke{color:#9fe8c9; font-style:italic;}
+  .cursor-line{color:var(--grn);}
+  .cursor-line:after{content:'▌'; animation:blink 1s step-end infinite;}
+  @keyframes blink{50%{opacity:0;}}
+
+  .target-card{
+    background:rgba(0,0,0,0.35); border:1px dashed var(--grn-dim);
+    border-radius:6px; padding:10px 12px; margin-top:8px;
+  }
+  .target-title{color:var(--amber); font-size:13px; font-weight:700; letter-spacing:0.04em;}
+  .target-desc{color:#8fd9b3; font-size:11px; margin-top:3px;}
+
+  .panel{display:flex; flex-direction:column; gap:8px;}
+  .progress-wrap{
+    background:rgba(0,0,0,0.4); border:1px solid var(--grn-dim); border-radius:4px;
+    height:18px; overflow:hidden; position:relative;
+  }
+  .progress-fill{
+    height:100%; width:0%;
+    background:repeating-linear-gradient(45deg, var(--grn), var(--grn) 8px, #1c8a52 8px, #1c8a52 16px);
+    transition:width .15s ease;
+  }
+  .progress-label{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:10px; color:#04140a; font-weight:700; letter-spacing:0.05em; mix-blend-mode:screen; color:#eafff2;
+  }
+
+  .hackbtn{
+    font-family:'Chakra Petch',sans-serif;
+    background:linear-gradient(180deg,#39ff88,#12b862);
+    color:#03130a; border:none; border-radius:6px;
+    padding:16px; font-size:16px; font-weight:700; letter-spacing:0.1em;
+    cursor:pointer; text-transform:uppercase;
+    box-shadow:0 0 26px rgba(57,255,136,0.45), 0 4px 0 #0c7a41;
+    transform:translateY(0);
+    transition:transform .06s, box-shadow .06s;
+  }
+  .hackbtn:active{ transform:translateY(3px); box-shadow:0 0 20px rgba(57,255,136,0.3), 0 1px 0 #0c7a41; }
+
+  .subrow{display:flex; gap:8px;}
+  .miniBtn{
+    flex:1; font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.04em;
+    background:rgba(57,255,136,0.06); color:var(--grn); border:1px solid var(--grn-dim);
+    border-radius:4px; padding:9px 6px; text-align:center; cursor:pointer;
+  }
+  .miniBtn:active{ background:rgba(57,255,136,0.18); }
+
+  .achievements{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;
+  }
+  .badge{
+    flex:0 0 auto; font-size:9.5px; color:#6bffb0; border:1px solid var(--grn-dim);
+    border-radius:12px; padding:5px 10px; background:rgba(0,0,0,0.3); white-space:nowrap;
+    opacity:0.35;
+  }
+  .badge.unlocked{ opacity:1; color:var(--amber); border-color:var(--amber); box-shadow:0 0 10px rgba(255,204,0,0.3); }
+
+  .overlay{
+    position:absolute; inset:0; z-index:20;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(1,6,3,0.92);
+    padding:24px; text-align:center;
+  }
+  .hidden{display:none !important;}
+  .overlay .glitchtitle{
+    font-family:'Chakra Petch',sans-serif; font-weight:700; color:var(--amber);
+    font-size:clamp(24px,8vw,38px); letter-spacing:0.05em; margin-bottom:10px;
+    text-shadow:0 0 20px rgba(255,204,0,0.6);
+  }
+  .overlay .payload{
+    color:var(--grn); font-size:14px; max-width:380px; line-height:1.7; margin-bottom:22px;
+    background:rgba(0,0,0,0.4); border:1px solid var(--grn-dim); border-radius:6px; padding:14px;
+  }
+  .overlay .sub{color:#8fd9b3; font-size:12px; max-width:340px; margin-bottom:20px; line-height:1.6;}
+  .bigbtn{
+    font-family:'Chakra Petch',sans-serif; background:var(--grn); color:#03130a; border:none;
+    padding:13px 30px; font-size:14px; font-weight:700; letter-spacing:0.08em; border-radius:4px;
+    cursor:pointer; text-transform:uppercase; box-shadow:0 0 20px rgba(57,255,136,0.4);
+  }
+
+  .intro{
+    position:absolute; inset:0; z-index:25; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:#020805; text-align:center; padding:24px;
+  }
+  .intro h1{
+    font-family:'Chakra Petch',sans-serif; color:var(--grn); font-size:clamp(26px,9vw,42px);
+    letter-spacing:0.04em; text-shadow:0 0 24px rgba(57,255,136,0.6); margin-bottom:8px;
+  }
+  .intro p{ color:#8fd9b3; font-size:13px; max-width:340px; line-height:1.7; margin-bottom:22px;}
+  .intro .legal{ font-size:9.5px; color:#4a7a5f; max-width:320px; margin-top:16px; line-height:1.6;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="rain"></canvas>
+  <div class="scanoverlay"></div>
+  <div class="flicker"></div>
+
+  <div class="intro" id="intro">
+    <h1>GLITCH<span style="color:var(--amber)">.SH</span></h1>
+    <p>A completely fictional, 100% pretend hacking simulator. Mash the button, watch nonsense scroll by, and "breach" increasingly ridiculous targets. No real computers were harmed.</p>
+    <button class="bigbtn" id="bootBtn">Boot Up</button>
+    <div class="legal">For entertainment only. All targets, code, and "exploits" are made up jokes.</div>
+  </div>
+
+  <div class="app" id="app" style="display:none;">
+    <div class="header">
+      <div class="logo">GLITCH<span>.SH</span></div>
+      <div class="rank">RANK: <b id="rankLabel">Script Kiddie</b></div>
+    </div>
+
+    <div class="terminal" id="terminal"></div>
+
+    <div class="target-card">
+      <div class="target-title" id="targetTitle">Target loading…</div>
+      <div class="target-desc" id="targetDesc"></div>
+    </div>
+
+    <div class="panel">
+      <div class="progress-wrap">
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-label" id="progressLabel">0%</div>
+      </div>
+      <button class="hackbtn" id="hackBtn">▶ HACK THE MAINFRAME</button>
+      <div class="subrow">
+        <div class="miniBtn" id="btnFirewall">⚡ Bypass Firewall</div>
+        <div class="miniBtn" id="btnDecrypt">🔓 Decrypt Files</div>
+        <div class="miniBtn" id="btnSocial">🎭 Social Engineer</div>
+      </div>
+      <div class="achievements" id="achRow"></div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="winOverlay">
+    <div>
+      <div class="glitchtitle">ACCESS GRANTED</div>
+      <div class="sub" id="winTarget">Target neutralized.</div>
+      <div class="payload" id="winPayload"></div>
+      <button class="bigbtn" id="nextBtn">Continue Rampage →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- Matrix rain ----------
+  const canvas = document.getElementById('rain');
+  const ctx = canvas.getContext('2d');
+  let W,H,cols,drops;
+  const chars = 'アイウエオカキクケコ01<>/{}[]#$%&ABCDEFXYZ';
+  function resize(){
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    const fontSize = 14;
+    cols = Math.floor(W/fontSize);
+    drops = new Array(cols).fill(0).map(()=>Math.random()*-40);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function drawRain(){
+    ctx.fillStyle = 'rgba(2,8,5,0.15)';
+    ctx.fillRect(0,0,W,H);
+    ctx.font = '14px monospace';
+    for(let i=0;i<cols;i++){
+      const ch = chars[Math.floor(Math.random()*chars.length)];
+      const x = i*14;
+      const y = drops[i]*14;
+      const grad = Math.random();
+      ctx.fillStyle = grad < 0.1 ? '#eafff2' : 'rgba(57,255,136,0.55)';
+      ctx.fillText(ch, x, y);
+      if(y > H && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+    requestAnimationFrame(drawRain);
+  }
+  drawRain();
+
+  // ---------- Game data ----------
+  const TARGETS = [
+    {name:"Grandma's Smart Toaster", desc:"Suspected of leaking classified cookie recipes.", need:26,
+     payload:"ACQUIRED: 1 (one) recipe for oatmeal raisin cookies. Also, the toaster is now playing polka music."},
+    {name:"The Office Coffee Machine", desc:"Firmware allegedly rigged to always run out on Mondays.", need:36,
+     payload:"ACQUIRED: root access to a coffee machine. It now says 'good morning, king' every time you walk by."},
+    {name:"Next-Door WiFi (\"FBI Surveillance Van 4\")", desc:"Password suspiciously set to 'password123'.", need:46,
+     payload:"ACQUIRED: 4 Mbps of bandwidth and a strongly worded router login banner about lawn maintenance."},
+    {name:"Local Vending Machine", desc:"Believed to be hoarding the last bag of spicy chips.", need:56,
+     payload:"ACQUIRED: full inventory manifest. There is, in fact, no spicy chips left. There never were."},
+    {name:"Area 51 Gift Shop POS", desc:"Definitely not a front for anything. Definitely.", need:68,
+     payload:"ACQUIRED: gift shop discount codes and a grainy photo of what might be a UFO or a Roomba."},
+    {name:"The Cloud (all of it)", desc:"Final boss. Contains everyone's photos of their lunch.", need:82,
+     payload:"ACQUIRED: the entire internet. You immediately give it back, it's too much responsibility."}
+  ];
+
+  const RANKS = [
+    {min:0, label:"Script Kiddie"},
+    {min:1, label:"Keyboard Warrior"},
+    {min:2, label:"Cyber Goblin"},
+    {min:3, label:"Certified Haxx0r"},
+    {min:4, label:"Master of the Dark Web (browser tab)"},
+    {min:5, label:"Grand Wizard of the Cloud"},
+    {min:6, label:"Legendary 1337 Overlord"}
+  ];
+
+  const ACHIEVEMENTS = [
+    {id:'first', label:'First Blood', desc:'Hacked your first target.'},
+    {id:'clicker', label:'Carpal Tunnel', desc:'Clicked HACK 100 times.'},
+    {id:'firewall', label:'Wall Breaker', desc:'Bypassed 5 firewalls.'},
+    {id:'decrypt', label:'Codebreaker', desc:'Decrypted 5 files.'},
+    {id:'social', label:'Smooth Talker', desc:'Social engineered 5 times.'},
+    {id:'allclear', label:'Nothing Is Safe', desc:'Beat every target.'}
+  ];
+
+  const LOG_POOL = [
+    "Rerouting packets through grandma's router...",
+    "Bypassing CAPTCHA using pure vibes...",
+    "Deploying quantum flux capacitor (unlicensed)...",
+    "Convincing firewall we're 'basically the same guy'...",
+    "Downloading more RAM...",
+    "Whispering sweet nothings to the mainframe...",
+    "Spoofing IP address as 127.0.0.1 (very sneaky)...",
+    "Negotiating with the router's inner child...",
+    "Compiling excuses in case someone asks what we're doing...",
+    "Turning it off and on again, aggressively...",
+    "Injecting SQL... into a sandwich...",
+    "Cracking password hash with sheer confidence...",
+    "Uploading virus.exe (it's actually a cat gif)...",
+    "Establishing encrypted tunnel made entirely of vibes...",
+    "Pinging the mothership for moral support...",
+    "Rewriting kernel in crayon...",
+    "Asking Jeeves nicely for admin access...",
+    "Defragmenting the concept of time...",
+    "Overclocking the toaster's ambitions...",
+    "Consulting the ancient scrolls (Stack Overflow)...",
+    "Enabling stealth mode (wearing sunglasses indoors)...",
+    "Rebooting the multiverse just in case...",
+    "Sacrificing a rubber duck to the debugging gods...",
+    "Compressing the entire internet into a zip file..."
+  ];
+
+  const SYS_LINES = [
+    "[SYS] Connection established on port ▓▓▓▓",
+    "[SYS] Handshake accepted. Probably legal.",
+    "[SYS] Latency: yes",
+    "[SYS] Threat level: mildly spicy",
+    "[SYS] Backup generator engaged: it's a hamster wheel"
+  ];
+
+  const WARN_LINES = [
+    "[WARN] Target is suspicious of our vibes",
+    "[WARN] CPU temperature rising (it's embarrassed)",
+    "[WARN] Someone in IT just felt a disturbance",
+    "[WARN] 37% chance this counts as a crime (it doesn't, it's a game)"
+  ];
+
+  // ---------- State ----------
+  let targetIndex = 0;
+  let progress = 0;
+  let totalHacks = 0;
+  let totalClicks = 0;
+  let firewallCount = 0, decryptCount = 0, socialCount = 0;
+  let unlockedAch = new Set();
+
+  const terminal = document.getElementById('terminal');
+  const targetTitle = document.getElementById('targetTitle');
+  const targetDesc = document.getElementById('targetDesc');
+  const progressFill = document.getElementById('progressFill');
+  const progressLabel = document.getElementById('progressLabel');
+  const rankLabel = document.getElementById('rankLabel');
+  const achRow = document.getElementById('achRow');
+  const hackBtn = document.getElementById('hackBtn');
+  const btnFirewall = document.getElementById('btnFirewall');
+  const btnDecrypt = document.getElementById('btnDecrypt');
+  const btnSocial = document.getElementById('btnSocial');
+  const winOverlay = document.getElementById('winOverlay');
+  const winTarget = document.getElementById('winTarget');
+  const winPayload = document.getElementById('winPayload');
+  const nextBtn = document.getElementById('nextBtn');
+  const intro = document.getElementById('intro');
+  const bootBtn = document.getElementById('bootBtn');
+  const app = document.getElementById('app');
+
+  // build achievement badges
+  ACHIEVEMENTS.forEach(a=>{
+    const el = document.createElement('div');
+    el.className = 'badge';
+    el.id = 'badge-'+a.id;
+    el.textContent = '🔒 ' + a.label;
+    el.title = a.desc;
+    achRow.appendChild(el);
+  });
+
+  function unlockAch(id){
+    if(unlockedAch.has(id)) return;
+    unlockedAch.add(id);
+    const el = document.getElementById('badge-'+id);
+    const meta = ACHIEVEMENTS.find(a=>a.id===id);
+    el.textContent = '★ ' + meta.label;
+    el.classList.add('unlocked');
+    addLine(`[ACHIEVEMENT] ${meta.label} — ${meta.desc}`, 'warn');
+    if(unlockedAch.size === ACHIEVEMENTS.length){} // no-op, allclear handled separately
+  }
+
+  function addLine(text, cls){
+    const div = document.createElement('div');
+    div.className = 'line ' + (cls||'');
+    div.textContent = text;
+    terminal.appendChild(div);
+    terminal.scrollTop = terminal.scrollHeight;
+    // cap lines
+    while(terminal.children.length > 120){
+      terminal.removeChild(terminal.firstChild);
+    }
+  }
+
+  function currentRank(){
+    let r = RANKS[0];
+    for(const rk of RANKS){ if(totalHacks >= rk.min) r = rk; }
+    return r.label;
+  }
+
+  function loadTarget(){
+    const t = TARGETS[targetIndex % TARGETS.length];
+    progress = 0;
+    targetTitle.textContent = `TARGET: ${t.name}`;
+    targetDesc.textContent = t.desc;
+    updateProgressUI();
+    addLine(`[SYS] New target acquired: ${t.name}`, 'sys');
+    addLine(`[SYS] Objective: ${t.desc}`, 'joke');
+  }
+
+  function updateProgressUI(){
+    const t = TARGETS[targetIndex % TARGETS.length];
+    const pct = Math.min(100, Math.round((progress/t.need)*100));
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = pct + '%';
+    rankLabel.textContent = currentRank();
+  }
+
+  function randomLog(){
+    if(Math.random() < 0.14) return {text: SYS_LINES[Math.floor(Math.random()*SYS_LINES.length)], cls:'sys'};
+    if(Math.random() < 0.1) return {text: WARN_LINES[Math.floor(Math.random()*WARN_LINES.length)], cls:'warn'};
+    return {text: '[EXEC] ' + LOG_POOL[Math.floor(Math.random()*LOG_POOL.length)], cls:''};
+  }
+
+  function gainProgress(amount, tag){
+    const t = TARGETS[targetIndex % TARGETS.length];
+    progress += amount;
+    const log = randomLog();
+    addLine(log.text, log.cls);
+    updateProgressUI();
+
+    if(tag==='firewall'){ firewallCount++; if(firewallCount>=5) unlockAch('firewall'); }
+    if(tag==='decrypt'){ decryptCount++; if(decryptCount>=5) unlockAch('decrypt'); }
+    if(tag==='social'){ socialCount++; if(socialCount>=5) unlockAch('social'); }
+
+    if(progress >= t.need){
+      completeTarget(t);
+    }
+  }
+
+  function completeTarget(t){
+    totalHacks++;
+    addLine(`[SYS] BREACH COMPLETE: ${t.name}`, 'sys');
+    if(totalHacks === 1) unlockAch('first');
+    if(targetIndex >= TARGETS.length-1 && totalHacks >= TARGETS.length) unlockAch('allclear');
+
+    winTarget.textContent = `${t.name} has been thoroughly, fictionally, hacked.`;
+    winPayload.textContent = t.payload;
+    winOverlay.classList.remove('hidden');
+  }
+
+  nextBtn.addEventListener('click', ()=>{
+    winOverlay.classList.add('hidden');
+    targetIndex++;
+    loadTarget();
+  });
+
+  hackBtn.addEventListener('click', ()=>{
+    totalClicks++;
+    if(totalClicks===100) unlockAch('clicker');
+    gainProgress(2 + Math.random()*3);
+    pulseButton(hackBtn);
+  });
+  btnFirewall.addEventListener('click', ()=>{ gainProgress(4+Math.random()*3, 'firewall'); pulseButton(btnFirewall); });
+  btnDecrypt.addEventListener('click', ()=>{ gainProgress(4+Math.random()*3, 'decrypt'); pulseButton(btnDecrypt); });
+  btnSocial.addEventListener('click', ()=>{ gainProgress(4+Math.random()*3, 'social'); pulseButton(btnSocial); });
+
+  function pulseButton(btn){
+    btn.style.transform = 'scale(0.96)';
+    setTimeout(()=>{ btn.style.transform=''; }, 90);
+  }
+
+  bootBtn.addEventListener('click', ()=>{
+    intro.classList.add('hidden');
+    app.style.display = 'flex';
+    addLine('[SYS] GLITCH.SH v2.4.1 initialized.', 'sys');
+    addLine('[SYS] Disclaimer: this is a comedy simulator, not a real hacking tool.', 'joke');
+    loadTarget();
+  });
+})();
+</script>
+</body>
+</html>
